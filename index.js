@@ -6,18 +6,14 @@ import Postrouter from "./Router/PostRouter.js";
 import MessageRouter from "./Router/MessageRouter.js";
 import cloudinary from "cloudinary";
 import dotenv from "dotenv";
+dotenv.config();
 import { app,server } from "./Socket/Socketio.js";
 import cors from "cors";
 
 connectToDb();
-dotenv.config();
 
 
-// cloudinary.v2.config({
-//   cloud_name: process.env.Cloud_Name,
-//   api_key: process.env.Cloud_Api,
-//   api_secret: process.env.Cloud_Secret,
-// });
+
 
 cloudinary.v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,  
