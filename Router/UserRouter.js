@@ -9,6 +9,36 @@ import { sendToken } from '../Utils/GetTokenAcess.js';
 import { authenticateToken } from '../Utils/Authentication.js';
 const userRouter = express.Router();
 
+// userRouter.post('/register', uploadFile, async (req, res) => {
+//     try {
+//         const payload = req.body;
+//         const file = req.file;
+//        if (!file) {
+//             return res.status(400).json({ message: 'No file uploaded' });
+//         }
+//         const fileurl = getUrl(file);
+//         const cloud = await cloudinary.v2.uploader.upload(fileurl.content);
+
+//         const userCheck = await usermodel.findOne({ email: payload.email });
+//         if (userCheck) {
+//             return res.status(409).json({ message: "User already exists" });
+//         }
+//         const hash = await bcrypt.hash(payload.password, 10);
+
+//         const userdata = new usermodel({
+//             ...payload,
+//             password: hash,
+//             userimage: { id: cloud.public_id, url: cloud.secure_url }
+//         });
+//         await userdata.save();
+//         sendToken(userdata, 201, res);
+//     } catch (error) {
+//         console.error(error.message);
+//         res.status(500).json({ message: 'Error registering user details' });
+//     }
+// });
+
+
 
 
 userRouter.post('/register', uploadFile, async (req, res) => {
@@ -20,32 +50,56 @@ userRouter.post('/register', uploadFile, async (req, res) => {
             return res.status(400).json({ message: 'No file uploaded' });
         }
 
-        const fileurl = getUrl(file);
-        const cloud = await cloudinary.v2.uploader.upload(fileurl.content);
+        console.log("File received:", file);
 
-        const userCheck = await usermodel.findOne({ email: payload.email });
-        if (userCheck) {
-            return res.status(409).json({ message: "User already exists" });
+        const fileurl = getUrl(file);
+        console.log("Generated file URL:", fileurl);
+
+        let cloud;
+        try {
+            cloud = await cloudinary.v2.uploader.upload(fileurl.content);
+            console.log("Uploaded to Cloudinary:", cloud);
+        } catch (cloudError) {
+            console.error("Cloudinary upload error:", cloudError);
+            return res.status(500).json({ message: 'Error uploading file' });
         }
 
+        // Check if user already exists
+        const userCheck = await usermodel.findOne({ email: payload.email });
+        if (userCheck) {
+            return res.status(409).json({ message: 'User already exists' });
+        }
+
+        if (!payload.password) {
+            return res.status(400).json({ message: 'Password is required' });
+        }
 
         const hash = await bcrypt.hash(payload.password, 10);
+        console.log("Password hashed successfully");
 
+        // Save user data
         const userdata = new usermodel({
             ...payload,
             password: hash,
             userimage: { id: cloud.public_id, url: cloud.secure_url }
         });
 
-        await userdata.save();
+        try {
+            await userdata.save();
+            console.log("User saved successfully:", userdata);
+        } catch (dbError) {
+            console.error("Database save error:", dbError);
+            return res.status(500).json({ message: 'Error saving user details' });
+        }
 
         sendToken(userdata, 201, res);
 
     } catch (error) {
-        console.error(error.message);
+        console.error("Unexpected server error:", error);
         res.status(500).json({ message: 'Error registering user details' });
     }
 });
+
 
 userRouter.post('/login', async (req, res) => {
     try {
@@ -56,18 +110,15 @@ userRouter.post('/login', async (req, res) => {
         if (!existingUser) {
             return res.status(404).json({ message: "User not found" });
         }
-
-
         const isPasswordValid = await bcrypt.compare(password, existingUser.password);
         if (!isPasswordValid) {
             return res.status(401).json({ message: "Incorrect password" });
         }
 
-
         sendToken(existingUser, 200, res);
 
     } catch (error) {
-        console.error('Login error:', error.message);
+        // console.error('Login error:', error.message);
         res.status(500).json({ message: "Error in logging in" });
     }
 });
@@ -118,6 +169,7 @@ userRouter.get('/profile/:id', authenticateToken, async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+
 
 
 
